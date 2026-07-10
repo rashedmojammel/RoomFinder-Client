@@ -2,6 +2,7 @@ import FeaturedRooms from "@/components/Sections/FeatureSection";
 import HeroSection from "@/components/Sections/Herosection";
 import HowItWorks from "@/components/Sections/HowItWorks";
 import PlatformStats from "@/components/Sections/Platformstat";
+import RoomCategories from "@/components/Sections/RoomCategories";
 import Image from "next/image";
 
 export default function Home() {
@@ -11,6 +12,7 @@ export default function Home() {
     <FeaturedRooms></FeaturedRooms>
     <PlatformStats></PlatformStats>
     <HowItWorks></HowItWorks>
+    <RoomCategories></RoomCategories>
     
     </>
     // <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
