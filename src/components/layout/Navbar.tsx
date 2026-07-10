@@ -37,7 +37,7 @@ const Navbar = () => {
       label: "Home",
     },
     {
-      href: "/rooms",
+      href: "/find-room",
       label: "Find Rooms",
     },
     {

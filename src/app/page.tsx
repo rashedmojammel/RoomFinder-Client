@@ -1,3 +1,4 @@
+import Footer from "@/components/layout/Footer";
 import FeaturedRooms from "@/components/Sections/FeatureSection";
 import HeroSection from "@/components/Sections/Herosection";
 import HowItWorks from "@/components/Sections/HowItWorks";
@@ -13,6 +14,7 @@ export default function Home() {
     <PlatformStats></PlatformStats>
     <HowItWorks></HowItWorks>
     <RoomCategories></RoomCategories>
+    <Footer></Footer>
     
     </>
     // <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
