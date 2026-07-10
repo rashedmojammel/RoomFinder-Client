@@ -27,7 +27,7 @@ const Navbar = () => {
   const isLoggedIn = !!user;
 
 
-  const role = user?.role || "tenant";
+  const role = user?.userRole || "tenant";
 
 
 
