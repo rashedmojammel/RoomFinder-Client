@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { CalendarCheck, ShieldAlert, Clock, CheckCircle2 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
-import { createBooking } from "@/lib/actions/bookings";
 import { Listing } from "@/types/listing";
 import { BookingStatus } from "@/types/booking";
+import BookingRequestModal from "@/components/room/BookingRequestModal";
 
 interface BookRoomButtonProps {
   listing: Listing;
@@ -15,31 +15,23 @@ interface BookRoomButtonProps {
 export default function BookRoomButton({ listing, initialStatus = null }: BookRoomButtonProps) {
   const { data: session, isPending: isSessionLoading } = useSession();
   const [status, setStatus] = useState<BookingStatus | null>(initialStatus);
-  const [isPending, startTransition] = useTransition();
+  const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const currentUserId = session?.user?.id;
   const isOwner = Boolean(currentUserId && currentUserId === listing.ownerId);
 
-  const handleBook = () => {
+  const openModal = () => {
     if (!currentUserId) {
       setError("Please sign in to request a booking.");
       return;
     }
     setError(null);
-
-    startTransition(async () => {
-      try {
-        const booking = await createBooking({ listingId: listing._id, tenantId: currentUserId });
-        setStatus(booking.status);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to send booking request");
-      }
-    });
+    setShowModal(true);
   };
 
   const isDisabled =
-    isSessionLoading || isPending || !listing.isAvailable || isOwner || status === "pending" || status === "approved";
+    isSessionLoading || !listing.isAvailable || isOwner || status === "pending" || status === "approved";
 
   let label = "Request to Book";
   let Icon = CalendarCheck;
@@ -55,13 +47,13 @@ export default function BookRoomButton({ listing, initialStatus = null }: BookRo
   } else if (status === "approved") {
     label = "Booking Approved";
     Icon = CheckCircle2;
-  } else if (isPending) label = "Sending request…";
+  }
 
   return (
     <>
       <div className="hidden md:block">
         <button
-          onClick={handleBook}
+          onClick={openModal}
           disabled={isDisabled}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-400 px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition-transform duration-300 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100"
         >
@@ -84,7 +76,7 @@ export default function BookRoomButton({ listing, initialStatus = null }: BookRo
           <span className="text-sm font-medium text-slate-500"> /month</span>
         </p>
         <button
-          onClick={handleBook}
+          onClick={openModal}
           disabled={isDisabled}
           className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-400 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-transform duration-300 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -92,6 +84,19 @@ export default function BookRoomButton({ listing, initialStatus = null }: BookRo
           {isOwner ? "Your listing" : label}
         </button>
       </div>
+
+      {showModal && currentUserId && (
+        <BookingRequestModal
+          listingId={listing._id}
+          tenantId={currentUserId}
+          defaultName={session?.user?.name ?? ""}
+          onClose={() => setShowModal(false)}
+          onSuccess={(newStatus) => {
+            setStatus(newStatus);
+            setShowModal(false);
+          }}
+        />
+      )}
     </>
   );
 }
