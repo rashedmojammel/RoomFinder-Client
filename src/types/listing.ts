@@ -1,3 +1,5 @@
+export type ListingApprovalStatus = "pending" | "approved" | "rejected";
+
 export interface Listing {
   _id: string;
   title: string;
@@ -11,6 +13,8 @@ export interface Listing {
   images: string[];
   ownerId: string;
   isAvailable: boolean;
+  approvalStatus: ListingApprovalStatus;
+  rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
 }
