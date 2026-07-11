@@ -36,12 +36,17 @@ export default async function OwnerBookingsPage() {
               </div>
 
               <div className="flex-1">
-                <Link href={`/find-room/${booking.listingId}`} className="font-semibold text-slate-900 hover:text-cyan-600">
-                  {booking.listing?.title ?? "Listing"}
-                </Link>
-                <p className="mt-1 text-sm text-slate-500">Requested by tenant ID: {booking.tenantId}</p>
-                {booking.message && <p className="mt-1 text-sm text-slate-500">&ldquo;{booking.message}&rdquo;</p>}
-              </div>
+  <Link href={`/find-room/${booking.listingId}`} className="font-semibold text-slate-900 hover:text-cyan-600">
+    {booking.listing?.title ?? "Listing"}
+  </Link>
+  <p className="mt-1 text-sm text-slate-700">{booking.tenantName} · {booking.tenantPhone}</p>
+  {booking.moveInDate && (
+    <p className="mt-1 text-xs text-slate-500">
+      Preferred move-in: {new Date(booking.moveInDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+    </p>
+  )}
+  {booking.message && <p className="mt-1 text-sm text-slate-500">&ldquo;{booking.message}&rdquo;</p>}
+</div>
 
               <div className="flex items-center gap-3">
                 <BookingStatusBadge status={booking.status} />

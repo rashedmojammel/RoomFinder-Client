@@ -7,8 +7,11 @@ export interface Booking {
   listingId: string;
   tenantId: string;
   ownerId: string;
-  status: BookingStatus;
+  tenantName: string;
+  tenantPhone: string;
+  moveInDate?: string;
   message?: string;
+  status: BookingStatus;
   createdAt: string;
   updatedAt: string;
   listing?: Listing | null;
@@ -17,5 +20,8 @@ export interface Booking {
 export interface CreateBookingInput {
   listingId: string;
   tenantId: string;
+  tenantName: string;
+  tenantPhone: string;
+  moveInDate?: string;
   message?: string;
 }
