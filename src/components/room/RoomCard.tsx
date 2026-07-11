@@ -2,12 +2,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { MapPin, BedDouble, Bath } from "lucide-react";
 import { Listing } from "@/types/listing";
+import SaveRoomButton from "@/components/room/SaveRoomButton";
 
 interface RoomCardProps {
   listing: Listing;
+  tenantId?: string;
+  isSaved?: boolean;
 }
 
-export default function RoomCard({ listing }: RoomCardProps) {
+export default function RoomCard({ listing, tenantId, isSaved = false }: RoomCardProps) {
   const cover = listing.images[0] ?? "/placeholder-room.jpg";
 
   return (
@@ -23,6 +26,12 @@ export default function RoomCard({ listing }: RoomCardProps) {
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
+
+        {tenantId && (
+          <div className="absolute right-3 top-3">
+            <SaveRoomButton tenantId={tenantId} listingId={listing._id} initialSaved={isSaved} />
+          </div>
+        )}
 
         {!listing.isAvailable && (
           <span className="absolute inset-0 flex items-center justify-center bg-slate-900/50">
@@ -56,9 +65,7 @@ export default function RoomCard({ listing }: RoomCardProps) {
 
         <div className="flex items-center justify-between border-t border-gray-100 pt-3">
           <div>
-            <span className="text-lg font-bold text-slate-900">
-              ৳{listing.rentPerMonth.toLocaleString()}
-            </span>
+            <span className="text-lg font-bold text-slate-900">৳{listing.rentPerMonth.toLocaleString()}</span>
             <span className="text-sm text-slate-500"> / month</span>
           </div>
         </div>

@@ -47,7 +47,7 @@ export const dashboardNav: Record<Role, DashboardNavItem[]> = {
     { href: "/dashboard/owner", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/owner/add-listing", label: "Add Listing", icon: PlusCircle },
     { href: "/dashboard/owner/listings", label: "My Listings", icon: Building2 },
-    { href: "/dashboard/owner/requests", label: "Booking Requests", icon: ClipboardList },
+    { href: "/dashboard/owner/bookings", label: "Booking Requests", icon: ClipboardList },
     { href: "/dashboard/owner/profile", label: "Profile", icon: UserRound },
   ],
   tenant: [
