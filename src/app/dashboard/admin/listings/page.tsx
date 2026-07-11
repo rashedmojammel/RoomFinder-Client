@@ -2,35 +2,27 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 // import { getUserSession } from "@/lib/session";
-// import { getOwnerListings } from "@/lib/api/listings";
-import ListingStatusBadge from "@/components/dashboard/ListingStatusBadge";
-import { getOwnerListings } from "@/lib/api/listing";
+import { getPendingListings } from "@/lib/api/listing";
+import ListingApprovalActions from "@/components/dashboard/admin/ListingApprovalActions";
 import { getUserSession } from "@/lib/core/session";
-import AddListingForm from "@/components/dashboard/owner/AddListingForm";
 
-export default async function OwnerListingsPage() {
+export default async function AdminListingsPage() {
   const user = await getUserSession();
   if (!user) redirect("/sign-in");
+  if (user.userRole !== "admin") redirect("/dashboard");
 
-  const listings = await getOwnerListings(user.id);
+  const listings = await getPendingListings();
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">My Listings</h2>
-          <p className="mt-1 text-sm text-slate-500">New listings are reviewed by an admin before they go live.</p>
-        </div>
-        <a
-          className="rounded-xl bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-400 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-transform duration-300 hover:scale-[1.02]"
-        >
-          <AddListingForm></AddListingForm>
-        </a>
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900">Pending Listings</h2>
+        <p className="mt-1 text-sm text-slate-500">Review new room listings before they go live.</p>
       </div>
 
       {listings.length === 0 ? (
         <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-md">
-          <p className="text-slate-500">You haven&apos;t posted any rooms yet.</p>
+          <p className="text-slate-500">No listings waiting for review.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -47,14 +39,11 @@ export default async function OwnerListingsPage() {
                   {listing.title}
                 </Link>
                 <p className="mt-1 text-sm text-slate-500">
-                  {listing.city} · ৳{listing.rentPerMonth.toLocaleString()}/month
+                  {listing.city} · ৳{listing.rentPerMonth.toLocaleString()}/month · owner: {listing.ownerId}
                 </p>
-                {listing.approvalStatus === "rejected" && listing.rejectionReason && (
-                  <p className="mt-1 text-xs text-red-500">Reason: {listing.rejectionReason}</p>
-                )}
               </div>
 
-              <ListingStatusBadge status={listing.approvalStatus} />
+              <ListingApprovalActions listingId={listing._id} />
             </div>
           ))}
         </div>

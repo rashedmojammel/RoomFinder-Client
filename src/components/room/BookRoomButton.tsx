@@ -31,7 +31,12 @@ export default function BookRoomButton({ listing, initialStatus = null }: BookRo
   };
 
   const isDisabled =
-    isSessionLoading || !listing.isAvailable || isOwner || status === "pending" || status === "approved";
+  isSessionLoading ||
+  !listing.isAvailable ||
+  listing.approvalStatus !== "approved" ||
+  isOwner ||
+  status === "pending" ||
+  status === "approved";
 
   let label = "Request to Book";
   let Icon = CalendarCheck;

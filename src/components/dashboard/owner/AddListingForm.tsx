@@ -62,19 +62,19 @@ export default function AddListingForm() {
     setIsSubmitting(true);
     try {
       const listing = await createListing({
-        title,
-        description,
-        city,
-        address,
-        rentPerMonth: Number(rentPerMonth),
-        bedrooms: Number(bedrooms),
-        bathrooms: Number(bathrooms),
-        ownerId,
-        amenities,
-        images,
-      });
+  title,
+  description,
+  city,
+  address,
+  rentPerMonth: Number(rentPerMonth),
+  bedrooms: Number(bedrooms),
+  bathrooms: Number(bathrooms),
+  ownerId,
+  amenities,
+  images,
+});
 
-      router.push(`/find-room/${listing._id}`);
+router.push("/dashboard/owner/listings");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create listing");
     } finally {

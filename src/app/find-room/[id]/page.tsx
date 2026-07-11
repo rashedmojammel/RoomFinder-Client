@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ShieldAlert } from "lucide-react";
 import RoomGallery from "@/components/room/RoomGallery";
 import RoomDetails from "@/components/room/RoomDetails";
 import Amenities from "@/components/room/Amenities";
@@ -26,6 +26,13 @@ export default async function ListingDetailsPage({ params }: ListingPageProps) {
   if (!listing) notFound();
 
   const viewer = await getUserSession();
+  const isOwnListing = viewer?.id === listing.ownerId;
+  const isAdmin = viewer?.role === "admin";
+
+  // Non-approved listings are only visible to their owner or an admin
+  if (listing.approvalStatus !== "approved" && !isOwnListing && !isAdmin) {
+    notFound();
+  }
 
   const [owner, nearbyAll, myBookings, mySaved] = await Promise.all([
     getUserById(listing.ownerId),
@@ -34,7 +41,6 @@ export default async function ListingDetailsPage({ params }: ListingPageProps) {
     viewer ? getSavedRooms(viewer.id) : Promise.resolve([]),
   ]);
 
-  const isOwnListing = viewer?.id === listing.ownerId;
   const nearby = nearbyAll.filter((l) => l._id !== listing._id).slice(0, 3);
   const existingBooking = myBookings.find((b) => b.listingId === listing._id);
   const isSaved = mySaved.some((l) => l._id === listing._id);
@@ -46,6 +52,17 @@ export default async function ListingDetailsPage({ params }: ListingPageProps) {
           <ArrowLeft className="h-4 w-4" />
           Back to all rooms
         </Link>
+
+        {listing.approvalStatus !== "approved" && (isOwnListing || isAdmin) && (
+          <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            <span>
+              {listing.approvalStatus === "pending"
+                ? "This listing is awaiting admin approval and isn't visible to tenants yet."
+                : `This listing was rejected${listing.rejectionReason ? `: ${listing.rejectionReason}` : "."}`}
+            </span>
+          </div>
+        )}
 
         <RoomGallery images={listing.images} title={listing.title} />
 

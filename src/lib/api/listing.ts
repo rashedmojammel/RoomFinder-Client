@@ -24,7 +24,7 @@ function buildQuery(filters: ListingFilters): string {
   return query ? `?${query}` : "";
 }
 
-// GET /api/rooms
+// GET /api/rooms — public feed, approved + available only (enforced server-side)
 export async function getListings(filters: ListingFilters = {}): Promise<Listing[]> {
   const { listings } = await serverFetch<ListingsResponse>(`${RESOURCE}${buildQuery(filters)}`);
   return listings;
@@ -38,4 +38,16 @@ export async function getListingById(id: string): Promise<Listing | null> {
   } catch {
     return null;
   }
+}
+
+// GET /api/rooms/owner/:ownerId — every status, for the owner's own dashboard
+export async function getOwnerListings(ownerId: string): Promise<Listing[]> {
+  const { listings } = await serverFetch<ListingsResponse>(`${RESOURCE}/owner/${ownerId}`);
+  return listings;
+}
+
+// GET /api/rooms/admin/pending — admin review queue
+export async function getPendingListings(): Promise<Listing[]> {
+  const { listings } = await serverFetch<ListingsResponse>(`${RESOURCE}/admin/pending`);
+  return listings;
 }
