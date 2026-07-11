@@ -7,6 +7,7 @@ interface OwnerCardProps {
   isOwnListing: boolean;
 }
 
+
 export default function OwnerCard({ owner, isOwnListing }: OwnerCardProps) {
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-md">
