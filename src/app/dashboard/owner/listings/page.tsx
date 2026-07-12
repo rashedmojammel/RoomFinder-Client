@@ -1,14 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Pencil } from "lucide-react";
 import { getUserSession } from "@/lib/core/session";
 import { getOwnerListings } from "@/lib/api/listing";
 import ListingStatusBadge from "@/components/dashboard/ListingStatusBadge";
 import AvailabilityToggle from "@/components/dashboard/owner/AvailabilityToggle";
 import DeleteListingButton from "@/components/dashboard/owner/DeleteListingButton";
-import AddListingModal from "@/components/dashboard/owner/AddListingModal";
 import EditListingModal from "@/components/dashboard/owner/EditListingModal";
+import AddListingModal from "@/components/dashboard/owner/AddListingModal";
 
 export default async function OwnerListingsPage() {
   const user = await getUserSession();
