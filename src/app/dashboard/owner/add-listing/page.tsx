@@ -1,12 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-// import { getUserSession } from "@/lib/session";
-// import { getOwnerListings } from "@/lib/api/listings";
-import ListingStatusBadge from "@/components/dashboard/ListingStatusBadge";
-import { getOwnerListings } from "@/lib/api/listing";
+import { Pencil } from "lucide-react";
 import { getUserSession } from "@/lib/core/session";
-import AddListingForm from "@/components/dashboard/owner/AddListingForm";
+import { getOwnerListings } from "@/lib/api/listing";
+import ListingStatusBadge from "@/components/dashboard/ListingStatusBadge";
+import AvailabilityToggle from "@/components/dashboard/owner/AvailabilityToggle";
+import DeleteListingButton from "@/components/dashboard/owner/DeleteListingButton";
+import AddListingModal from "@/components/dashboard/owner/AddListingModal";
 
 export default async function OwnerListingsPage() {
   const user = await getUserSession();
@@ -19,13 +20,9 @@ export default async function OwnerListingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">My Listings</h2>
-          <p className="mt-1 text-sm text-slate-500">New listings are reviewed by an admin before they go live.</p>
+          <p className="mt-1 text-sm text-slate-500">New listings and edits are reviewed by an admin before going live.</p>
         </div>
-        <a
-          className="rounded-xl bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-400 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition-transform duration-300 hover:scale-[1.02]"
-        >
-          <AddListingForm></AddListingForm>
-        </a>
+        <AddListingModal />
       </div>
 
       {listings.length === 0 ? (
@@ -54,7 +51,24 @@ export default async function OwnerListingsPage() {
                 )}
               </div>
 
-              <ListingStatusBadge status={listing.approvalStatus} />
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col items-center gap-1">
+                  <AvailabilityToggle listingId={listing._id} initialValue={listing.isAvailable} />
+                  <span className="text-xs text-slate-400">{listing.isAvailable ? "Available" : "Unavailable"}</span>
+                </div>
+
+                <ListingStatusBadge status={listing.approvalStatus} />
+
+                <Link
+                  href={`/dashboard/owner/add-listing/${listing._id}/edit`}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
+                </Link>
+
+                <DeleteListingButton listingId={listing._id} />
+              </div>
             </div>
           ))}
         </div>

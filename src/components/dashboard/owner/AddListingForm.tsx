@@ -2,12 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Input, TextArea, Label, Button } from "@heroui/react";
 import { Plus, X, Loader2 } from "lucide-react";
 import { useSession } from "@/lib/auth-client";
 import { createListing } from "@/lib/actions/listing";
 import ImageUploader from "@/components/ui/ImageUploader";
 
-export default function AddListingForm() {
+interface AddListingFormProps {
+  onSuccess?: () => void;
+}
+
+const inputClass =
+  "w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-700 outline-none transition-colors focus-visible:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-100";
+const labelClass = "mb-1.5 block text-sm font-medium text-slate-700";
+
+export default function AddListingForm({ onSuccess }: AddListingFormProps) {
   const router = useRouter();
   const { data: session, isPending: isSessionLoading } = useSession();
 
@@ -62,19 +71,23 @@ export default function AddListingForm() {
     setIsSubmitting(true);
     try {
       const listing = await createListing({
-  title,
-  description,
-  city,
-  address,
-  rentPerMonth: Number(rentPerMonth),
-  bedrooms: Number(bedrooms),
-  bathrooms: Number(bathrooms),
-  ownerId,
-  amenities,
-  images,
-});
+        title,
+        description,
+        city,
+        address,
+        rentPerMonth: Number(rentPerMonth),
+        bedrooms: Number(bedrooms),
+        bathrooms: Number(bathrooms),
+        ownerId,
+        amenities,
+        images,
+      });
 
-router.push("/dashboard/owner/listings");
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push(`/find-room/${listing._id}`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create listing");
     } finally {
@@ -83,7 +96,7 @@ router.push("/dashboard/owner/listings");
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-md">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
           {error}
@@ -97,89 +110,93 @@ router.push("/dashboard/owner/listings");
       )}
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Title *</label>
-        <input
-          type="text"
+        <Label htmlFor="title" className={labelClass}>Title *</Label>
+        <Input
+          id="title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g. Sunlit Studio Near Gulshan Lake"
-          className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Description *</label>
-        <textarea
+        <Label htmlFor="description" className={labelClass}>Description *</Label>
+        <TextArea
+          id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
           placeholder="Describe the room, the building, and the neighborhood…"
-          className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+          className={inputClass}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">City *</label>
-          <input
-            type="text"
+          <Label htmlFor="city" className={labelClass}>City *</Label>
+          <Input
+            id="city"
             value={city}
             onChange={(e) => setCity(e.target.value)}
             placeholder="Dhaka"
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+            className={inputClass}
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">Address *</label>
-          <input
-            type="text"
+          <Label htmlFor="address" className={labelClass}>Address *</Label>
+          <Input
+            id="address"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="Road 11, Gulshan 1"
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+            className={inputClass}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">Rent / month (৳) *</label>
-          <input
+          <Label htmlFor="rent" className={labelClass}>Rent / month (৳) *</Label>
+          <Input
+            id="rent"
             type="number"
             min={0}
             value={rentPerMonth}
             onChange={(e) => setRentPerMonth(e.target.value)}
             placeholder="18500"
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+            className={inputClass}
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">Bedrooms</label>
-          <input
+          <Label htmlFor="bedrooms" className={labelClass}>Bedrooms</Label>
+          <Input
+            id="bedrooms"
             type="number"
             min={0}
             value={bedrooms}
             onChange={(e) => setBedrooms(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+            className={inputClass}
           />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">Bathrooms</label>
-          <input
+          <Label htmlFor="bathrooms" className={labelClass}>Bathrooms</Label>
+          <Input
+            id="bathrooms"
             type="number"
             min={0}
             value={bathrooms}
             onChange={(e) => setBathrooms(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+            className={inputClass}
           />
         </div>
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Amenities</label>
+        <Label htmlFor="amenity" className={labelClass}>Amenities</Label>
         <div className="flex gap-2">
-          <input
-            type="text"
+          <Input
+            id="amenity"
             value={amenityInput}
             onChange={(e) => setAmenityInput(e.target.value)}
             onKeyDown={(e) => {
@@ -189,15 +206,15 @@ router.push("/dashboard/owner/listings");
               }
             }}
             placeholder="e.g. Wi-Fi, then press Enter"
-            className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+            className={inputClass}
           />
-          <button
+          <Button
             type="button"
             onClick={addAmenity}
             className="flex items-center justify-center rounded-xl bg-slate-100 px-4 text-slate-600 transition hover:bg-slate-200"
           >
             <Plus className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
 
         {amenities.length > 0 && (
@@ -218,7 +235,7 @@ router.push("/dashboard/owner/listings");
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-700">Photos</label>
+        <Label className={labelClass}>Photos</Label>
         <ImageUploader
           value={images}
           onChange={setImages}
@@ -227,14 +244,14 @@ router.push("/dashboard/owner/listings");
         />
       </div>
 
-      <button
+      <Button
         type="submit"
-        disabled={isSubmitting || isImagesUploading || isSessionLoading || !session?.user}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-400 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-transform duration-300 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+        isDisabled={isSubmitting || isImagesUploading || isSessionLoading || !session?.user}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-400 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-transform duration-300 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
         {isSubmitting ? "Publishing…" : isImagesUploading ? "Waiting for uploads…" : "Publish Listing"}
-      </button>
+      </Button>
     </form>
   );
 }
