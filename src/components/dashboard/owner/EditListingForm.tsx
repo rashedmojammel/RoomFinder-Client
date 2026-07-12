@@ -7,7 +7,12 @@ import { updateListing } from "@/lib/actions/listing";
 import ImageUploader from "@/components/ui/ImageUploader";
 import { Listing } from "@/types/listing";
 
-export default function EditListingForm({ listing }: { listing: Listing }) {
+interface EditListingFormProps {
+  listing: Listing;
+  onSuccess?: () => void;
+}
+
+export default function EditListingForm({ listing, onSuccess }: EditListingFormProps) {
   const router = useRouter();
 
   const [title, setTitle] = useState(listing.title);
@@ -59,7 +64,13 @@ export default function EditListingForm({ listing }: { listing: Listing }) {
         amenities,
         images,
       });
-      router.push("/dashboard/owner/listings");
+
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push("/dashboard/owner/listings");
+      }
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update listing");
     } finally {
@@ -68,7 +79,7 @@ export default function EditListingForm({ listing }: { listing: Listing }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-md">
+    <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
       )}
