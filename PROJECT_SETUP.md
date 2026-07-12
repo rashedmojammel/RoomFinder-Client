@@ -226,14 +226,17 @@ src/
 ## Endpoints built
 
 **Listings** (`/api/rooms`)
-* `GET /` — filter by `city`, `minRent`, `maxRent`, `bedrooms`
+* `GET /` — public feed; filter by `city`, `minRent`, `maxRent`, `bedrooms`; only returns `isAvailable: true` **and** `approvalStatus: "approved"`
 * `GET /:id`
-* `POST /`
-* `PATCH /:id`
+* `GET /owner/:ownerId` — owner's own listings, every approval status
+* `GET /admin/pending` — admin review queue, oldest first
+* `POST /` — always created with `approvalStatus: "pending"`; client cannot set approval status directly
+* `PATCH /:id` — editing an already-approved listing resets it to `"pending"` (re-review), unless the only field changed is `isAvailable`
+* `PATCH /:id/approval` — admin approves/rejects, optional `rejectionReason` on reject
 * `DELETE /:id`
 
 **Bookings** (`/api/bookings`)
-* `POST /` — tenant creates a pending request; blocks self-booking, duplicate pending requests, and booking unavailable rooms
+* `POST /` — tenant creates a pending request with `tenantName`, `tenantPhone` (required), `moveInDate`, `message` (optional); blocks self-booking, duplicate pending requests, and booking unavailable/unapproved rooms
 * `GET /tenant/:tenantId`
 * `GET /owner/:ownerId`
 * `PATCH /:id/status` — owner approves/rejects, tenant cancels (authorization checked against `ownerId`/`tenantId`)
@@ -264,10 +267,14 @@ Split into two layers by HTTP verb, matching Next.js's read/write conventions:
 * Room details page — gallery, amenities, owner info, related listings in the same city
 * Add Listing form — owner-only, pulls `ownerId` from session (not manually typed), image upload via imgbb, amenities tag input
 * Image upload — direct browser-to-imgbb via `NEXT_PUBLIC_IMGBB_API_KEY`, drag-and-drop, multi-file, per-file progress/error state
+* Booking request modal — clicking "Book" opens a modal collecting tenant name, phone (required), move-in date and message (optional) instead of firing an instant request
 * Booking system — tenant requests a room, owner approves/rejects from a dashboard table, tenant can cancel a pending request, owner blocked from booking their own listing
 * Saved rooms (wishlist) — heart icon on room cards, optimistic UI, backed by a dedicated `savedRooms` collection
 * Owner profile on room details — real name/avatar/email pulled from the `user` collection (better-auth's own MongoDB collection), queried directly from a Server Component
 * Profile management page — update name/avatar (`authClient.updateUser`) and password (`authClient.changePassword`)
+* Admin listing approval — every new/edited listing starts as `pending`; only `approved` listings appear in the public feed; admin queue page to approve/reject with an optional rejection reason
+* Owner dashboard — sidebar layout (`dashboard-nav.ts` config), live stats (real listing/booking counts, not hardcoded), My Listings page with availability toggle + edit + delete, edit-triggers-reapproval logic, profile page moved to match `roleProfilePath`
+* Add Listing as intercepting-route modal — clicking the sidebar link opens the form as a modal (via Next.js parallel + intercepting routes) while a direct visit/refresh of the same URL still renders the full page
 
 ---
 
@@ -604,6 +611,110 @@ Owners could send a booking request on their own listing, and the room details p
 
 * `BookRoomButton` now reads `session.user.id` via `useSession()` and disables + relabels the button ("This is your listing") when it matches `listing.ownerId`. Same check added server-side in the backend's `createBooking` controller (`400` `"You cannot book your own listing"`) so it's enforced even if the frontend check is bypassed.
 * `OwnerCard` converted to a Server Component that receives real owner data fetched directly from the `user` collection via `getUserById(ownerId)`, run in parallel with the listing/nearby-rooms fetches.
+
+---
+
+# Issue #10
+
+## Problem
+
+Direct one-click "Request to Book" had no way for the owner to actually contact the tenant — no name, no phone number, nothing to act on when reviewing a request.
+
+## Cause
+
+The original booking flow only ever sent `{ listingId, tenantId }` — enough to create a pending record, but not enough for an owner to make a real decision or get in touch.
+
+## Solution
+
+Added a `BookingRequestModal` that opens when "Book" is clicked, collecting `tenantName` and `tenantPhone` (required) plus `moveInDate` and `message` (optional) before calling `createBooking`. Backend `Booking` type and `createBooking` validation updated to require the two contact fields. Owner's booking dashboard now shows the tenant's actual name/phone/move-in date instead of a raw `tenantId` string.
+
+---
+
+# Issue #11
+
+## Problem
+
+Visiting `/dashboard/admin/listings` immediately redirected back to `/dashboard` instead of showing the approval queue.
+
+## Cause
+
+The page has:
+
+```tsx
+if (user.role !== "admin") redirect("/dashboard");
+```
+
+The logged-in user's `role` wasn't actually `"admin"` — either because no signup flow ever produces that value (every new user defaults to `"tenant"`), or because `role` wasn't coming through on `session.user` at all if the field wasn't correctly declared under `additionalFields` in `auth.ts`.
+
+## Solution
+
+* Manually set the role directly in MongoDB for a test account:
+  ```js
+  db.user.updateOne({ email: "you@example.com" }, { $set: { role: "admin" } })
+  ```
+* **Signed out and back in** afterward — an existing session doesn't pick up a role change until a new session is issued.
+* Confirmed `role` is declared under `user.additionalFields` in `auth.ts`, not just referenced during signup, so it's actually included on every session fetch.
+* Redirect target improved to route through `roleDashboardPath[getRole(user.role)]` instead of a hardcoded `/dashboard`, so a mis-permissioned visit lands somewhere role-appropriate instead of a dead end.
+
+---
+
+# Issue #12
+
+## Error
+
+```
+Internal Server Error
+```
+...specifically when clicking **Approve** (or reject-with-no-reason) on a pending listing in the admin queue.
+
+## Cause
+
+`updateListingApproval` built its MongoDB update document like this:
+
+```ts
+const update: Partial<Listing> = { approvalStatus, updatedAt: new Date() };
+
+if (approvalStatus === "rejected") {
+  update.rejectionReason = ...;
+} else {
+  update.rejectionReason = undefined;   // key still exists, value is undefined
+}
+
+await collection.updateOne(
+  { _id: new ObjectId(id) },
+  { $set: update, $unset: { ...(update.rejectionReason === undefined ? { rejectionReason: "" } : {}) } }
+);
+```
+
+Setting `update.rejectionReason = undefined` leaves the **key** present on the object (JS allows a key with an `undefined` value). That object went straight into `$set`, while the same field name was *also* added to `$unset` — putting `rejectionReason` in both `$set` and `$unset` in a single `updateOne` call. MongoDB rejects that outright:
+
+```
+MongoServerError: Updating the path 'rejectionReason' would create a conflict at 'rejectionReason'
+```
+
+This fired on essentially every **approve** click, since approving always took the `else` branch.
+
+## Solution
+
+Rebuilt the update as two genuinely separate objects (`setFields` / `unsetFields`), so `rejectionReason` is only ever placed in one of them, never both:
+
+```ts
+const setFields: Record<string, unknown> = { approvalStatus, updatedAt: new Date() };
+const unsetFields: Record<string, ""> = {};
+
+if (approvalStatus === "rejected" && rejectionReason?.trim()) {
+  setFields.rejectionReason = rejectionReason.trim();
+} else {
+  unsetFields.rejectionReason = "";
+}
+
+const updateOperation: Record<string, unknown> = { $set: setFields };
+if (Object.keys(unsetFields).length > 0) updateOperation.$unset = unsetFields;
+
+await collection.updateOne({ _id: new ObjectId(id) }, updateOperation);
+```
+
+Fixed in `Roomfinder-server/src/controllers/listing.controller.ts`, inside `updateListingApproval` — no frontend changes needed, the bug was entirely in how the MongoDB update document was constructed.
 
 ---
 
