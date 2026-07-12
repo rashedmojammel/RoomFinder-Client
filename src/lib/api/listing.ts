@@ -1,5 +1,5 @@
 // import { serverFetch } from "@/lib/fetch";
-import { Listing, ListingFilters } from "@/types/listing";
+import { Listing, ListingApprovalStatus, ListingFilters } from "@/types/listing";
 import { serverFetch } from "../core/server";
 
 const RESOURCE = "/api/rooms";
@@ -49,5 +49,10 @@ export async function getOwnerListings(ownerId: string): Promise<Listing[]> {
 // GET /api/rooms/admin/pending — admin review queue
 export async function getPendingListings(): Promise<Listing[]> {
   const { listings } = await serverFetch<ListingsResponse>(`${RESOURCE}/admin/pending`);
+  return listings;
+}
+export async function getAllListingsAdmin(status?: ListingApprovalStatus): Promise<Listing[]> {
+  const query = status ? `?status=${status}` : "";
+  const { listings } = await serverFetch<ListingsResponse>(`${RESOURCE}/admin/all${query}`);
   return listings;
 }

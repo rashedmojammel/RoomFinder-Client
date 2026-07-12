@@ -22,3 +22,20 @@ export async function getUserById(id: string): Promise<PublicUser | null> {
     phoneNumber: doc.phoneNumber ?? undefined,
   };
 }
+export async function getAllUsers(): Promise<PublicUser[]> {
+  const db = await getAuthDb();
+  const collection = db.collection("user");
+
+  const docs = await collection.find({}).sort({ createdAt: -1 }).toArray();
+
+  return docs.map((doc) => ({
+    id: doc.id ?? doc._id?.toString(),
+    name: doc.name ?? "Unknown",
+    email: doc.email ?? "",
+    image: doc.image ?? null,
+    phoneNumber: doc.phoneNumber ?? undefined,
+    role: doc.role ?? "tenant",
+    banned: Boolean(doc.banned),
+    createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : undefined,
+  }));
+}

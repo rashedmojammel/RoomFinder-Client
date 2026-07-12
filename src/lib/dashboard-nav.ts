@@ -1,3 +1,4 @@
+import { Role } from "@/types/user";
 import {
   LayoutDashboard,
   Users,
@@ -12,8 +13,9 @@ import {
   CalendarCheck,
   type LucideIcon,
 } from "lucide-react";
+// import type { Role } from "@/types/user";
 
-export type Role = "admin" | "owner" | "tenant";
+export type { Role };
 
 export interface DashboardNavItem {
   href: string;

@@ -1,28 +1,53 @@
 import Image from "next/image";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-// import { getUserSession } from "@/lib/session";
-import { getPendingListings } from "@/lib/api/listing";
+import { getAllListingsAdmin } from "@/lib/api/listing";
+import ListingStatusBadge from "@/components/dashboard/ListingStatusBadge";
 import ListingApprovalActions from "@/components/dashboard/admin/ListingApprovalActions";
-import { getUserSession } from "@/lib/core/session";
+import { ListingApprovalStatus } from "@/types/listing";
 
-export default async function AdminListingsPage() {
-  const user = await getUserSession();
-  if (!user) redirect("/sign-in");
-  if (user.userRole !== "admin") redirect("/dashboard");
+interface AdminListingsPageProps {
+  searchParams: Promise<{ status?: string }>;
+}
 
-  const listings = await getPendingListings();
+const tabs: { label: string; value: ListingApprovalStatus | "all" }[] = [
+  { label: "All", value: "all" },
+  { label: "Pending", value: "pending" },
+  { label: "Approved", value: "approved" },
+  { label: "Rejected", value: "rejected" },
+];
+
+export default async function AdminListingsPage({ searchParams }: AdminListingsPageProps) {
+  const { status } = await searchParams;
+  const activeStatus = status as ListingApprovalStatus | undefined;
+
+  const listings = await getAllListingsAdmin(activeStatus);
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">Pending Listings</h2>
-        <p className="mt-1 text-sm text-slate-500">Review new room listings before they go live.</p>
+        <h2 className="text-2xl font-bold text-slate-900">Manage Listings</h2>
+        <p className="mt-1 text-sm text-slate-500">Review, approve, or reject listings across the platform.</p>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {tabs.map((tab) => (
+          <Link
+            key={tab.value}
+            href={tab.value === "all" ? "/dashboard/admin/listings" : `/dashboard/admin/listings?status=${tab.value}`}
+            className={`rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-300 ${
+              (activeStatus ?? "all") === tab.value
+                ? "bg-gradient-to-r from-blue-500 via-cyan-500 to-teal-400 text-white shadow-md"
+                : "bg-slate-50 text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {tab.label}
+          </Link>
+        ))}
       </div>
 
       {listings.length === 0 ? (
         <div className="rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-md">
-          <p className="text-slate-500">No listings waiting for review.</p>
+          <p className="text-slate-500">No listings found for this filter.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -43,7 +68,10 @@ export default async function AdminListingsPage() {
                 </p>
               </div>
 
-              <ListingApprovalActions listingId={listing._id} />
+              <div className="flex items-center gap-3">
+                <ListingStatusBadge status={listing.approvalStatus} />
+                {listing.approvalStatus === "pending" && <ListingApprovalActions listingId={listing._id} />}
+              </div>
             </div>
           ))}
         </div>

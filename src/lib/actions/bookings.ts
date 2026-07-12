@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 // import { serverMutation } from "@/lib/fetch";
 import { Booking, BookingStatus, CreateBookingInput } from "@/types/booking";
-import { serverMutation } from "../core/server";
+import { serverFetch, serverMutation } from "../core/server";
 
 interface BookingResponse {
   booking: Booking;
@@ -28,4 +28,8 @@ export async function updateBookingStatus(
   revalidatePath("/dashboard/owner/bookings");
   revalidatePath("/dashboard/tenant/bookings");
   return booking;
+}
+export async function getAllBookings(): Promise<Booking[]> {
+  const { bookings } = await serverFetch<BookingsResponse>(`/api/bookings/admin/all`);
+  return bookings;
 }
