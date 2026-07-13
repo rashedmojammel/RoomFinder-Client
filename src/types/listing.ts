@@ -15,6 +15,8 @@ export interface Listing {
   isAvailable: boolean;
   approvalStatus: ListingApprovalStatus;
   rejectionReason?: string;
+  ratingAverage: number;
+  reviewCount: number;
   createdAt: string;
   updatedAt: string;
 }

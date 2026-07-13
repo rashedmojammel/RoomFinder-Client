@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import RoomGallery from "@/components/room/RoomGallery";
 import RoomDetails from "@/components/room/RoomDetails";
 import Amenities from "@/components/room/Amenities";
@@ -8,13 +8,15 @@ import OwnerCard from "@/components/room/OwnerCard";
 import BookRoomButton from "@/components/room/BookRoomButton";
 import SaveRoomButton from "@/components/room/SaveRoomButton";
 import RoomCard from "@/components/room/RoomCard";
+import RatingSummary from "@/components/room/RatingSummary";
+import ReviewsList from "@/components/room/ReviewsList";
+import WriteReviewModal from "@/components/room/WriteReviewModal";
 import { getListingById, getListings } from "@/lib/api/listing";
-// import { getUserById } from "@/lib/api/users";
-// import { getUserSession } from "@/lib/session";
+import { getUserById } from "@/lib/api/user";
+import { getUserSession } from "@/lib/core/session";
 import { getTenantBookings } from "@/lib/api/bookings";
 import { getSavedRooms } from "@/lib/api/savedRooms";
-import { getUserSession } from "@/lib/core/session";
-import { getUserById } from "@/lib/api/user";
+import { getListingReviews } from "@/lib/api/review";
 
 interface ListingPageProps {
   params: Promise<{ id: string }>;
@@ -26,24 +28,29 @@ export default async function ListingDetailsPage({ params }: ListingPageProps) {
   if (!listing) notFound();
 
   const viewer = await getUserSession();
-  const isOwnListing = viewer?.id === listing.ownerId;
-  const isAdmin = viewer?.role === "admin";
+  const isOwnListing = viewer?.userRole === undefined ? false : viewer.id === listing.ownerId;
+  const isAdmin = viewer?.userRole === "admin";
 
-  // Non-approved listings are only visible to their owner or an admin
   if (listing.approvalStatus !== "approved" && !isOwnListing && !isAdmin) {
     notFound();
   }
 
-  const [owner, nearbyAll, myBookings, mySaved] = await Promise.all([
+  const [owner, nearbyAll, myBookings, mySaved, reviewsData] = await Promise.all([
     getUserById(listing.ownerId),
     getListings({ city: listing.city }),
     viewer ? getTenantBookings(viewer.id) : Promise.resolve([]),
     viewer ? getSavedRooms(viewer.id) : Promise.resolve([]),
+    getListingReviews(listing._id),
   ]);
 
   const nearby = nearbyAll.filter((l) => l._id !== listing._id).slice(0, 3);
   const existingBooking = myBookings.find((b) => b.listingId === listing._id);
   const isSaved = mySaved.some((l) => l._id === listing._id);
+
+  const hasApprovedBooking = myBookings.some((b) => b.listingId === listing._id && b.status === "approved");
+  const existingReview = viewer
+    ? reviewsData.reviews.find((r) => r.tenantId === viewer.id) ?? null
+    : null;
 
   return (
     <main className="min-h-screen bg-slate-50 pb-24 md:pb-12">
@@ -53,23 +60,40 @@ export default async function ListingDetailsPage({ params }: ListingPageProps) {
           Back to all rooms
         </Link>
 
-        {listing.approvalStatus !== "approved" && (isOwnListing || isAdmin) && (
-          <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <ShieldAlert className="mt-0.5 h-4 w-4 flex-shrink-0" />
-            <span>
-              {listing.approvalStatus === "pending"
-                ? "This listing is awaiting admin approval and isn't visible to tenants yet."
-                : `This listing was rejected${listing.rejectionReason ? `: ${listing.rejectionReason}` : "."}`}
-            </span>
-          </div>
-        )}
-
         <RoomGallery images={listing.images} title={listing.title} />
 
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="space-y-8 lg:col-span-2">
             <RoomDetails listing={listing} />
             <Amenities amenities={listing.amenities} />
+
+            {/* Reviews section */}
+            <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-md">
+              <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">Reviews</h2>
+                  <div className="mt-1">
+                    <RatingSummary average={reviewsData.average} count={reviewsData.count} />
+                  </div>
+                </div>
+
+                {viewer && hasApprovedBooking && (
+                  <WriteReviewModal
+                    listingId={listing._id}
+                    tenantId={viewer.id}
+                    tenantName={viewer.name}
+                    existingReview={existingReview}
+                  />
+                )}
+              </div>
+
+              <ReviewsList
+                reviews={reviewsData.reviews}
+                currentUserId={viewer?.id}
+                isAdmin={isAdmin}
+                listingId={listing._id}
+              />
+            </div>
           </div>
 
           <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">

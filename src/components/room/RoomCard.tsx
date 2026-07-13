@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, BedDouble, Bath } from "lucide-react";
+import { MapPin, BedDouble, Bath, Star } from "lucide-react";
 import { Listing } from "@/types/listing";
 import SaveRoomButton from "@/components/room/SaveRoomButton";
 
@@ -31,6 +31,13 @@ export default function RoomCard({ listing, tenantId, isSaved = false }: RoomCar
           <div className="absolute right-3 top-3">
             <SaveRoomButton tenantId={tenantId} listingId={listing._id} initialSaved={isSaved} />
           </div>
+        )}
+
+        {listing.reviewCount > 0 && (
+          <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-sm">
+            <Star className="h-3.5 w-3.5 fill-cyan-500 text-cyan-500" />
+            {listing.ratingAverage.toFixed(1)}
+          </span>
         )}
 
         {!listing.isAvailable && (
