@@ -8,6 +8,9 @@ import { serverFetch, serverMutation } from "../core/server";
 interface BookingResponse {
   booking: Booking;
 }
+interface BookingsResponse {
+  bookings: Booking[];
+}
 
 export async function createBooking(data: CreateBookingInput): Promise<Booking> {
   const { booking } = await serverMutation<BookingResponse>("/api/bookings", data, "POST");
