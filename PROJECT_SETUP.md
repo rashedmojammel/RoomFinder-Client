@@ -17,14 +17,15 @@ Two separate repositories:
 
 * Next.js 16 (App Router)
 * TypeScript
-* Tailwind CSS
-* Better Auth
+* Tailwind CSS (v3-style config — deliberately not migrated to v4)
+* Better Auth, with the `admin` plugin enabled (reserves `role`/`banned`/`banReason`/`banExpires` field names — see Issue #16)
 * MongoDB (native driver, no Mongoose)
 * Express.js
 * imgbb (image hosting)
+* HeroUI **v2** (`@heroui/react@2`, pinned deliberately — see Issue #14, do not upgrade to v3 without a deliberate Tailwind v4 migration)
 * Framer Motion
 * Lucide React
-* Gravity UI Icons
+* Gravity UI Icons (note: `size` prop not supported, use `width`/`height` — see Issue #17)
 
 ---
 
@@ -274,7 +275,10 @@ Split into two layers by HTTP verb, matching Next.js's read/write conventions:
 * Profile management page — update name/avatar (`authClient.updateUser`) and password (`authClient.changePassword`)
 * Admin listing approval — every new/edited listing starts as `pending`; only `approved` listings appear in the public feed; admin queue page to approve/reject with an optional rejection reason
 * Owner dashboard — sidebar layout (`dashboard-nav.ts` config), live stats (real listing/booking counts, not hardcoded), My Listings page with availability toggle + edit + delete, edit-triggers-reapproval logic, profile page moved to match `roleProfilePath`
-* Add Listing as intercepting-route modal — clicking the sidebar link opens the form as a modal (via Next.js parallel + intercepting routes) while a direct visit/refresh of the same URL still renders the full page
+* Add Listing / Edit Listing as HeroUI v2 modals — simple client-state modals (not intercepting routes, see Issue #13), triggered from the "My Listings" page, both forms support an `onSuccess` callback to close the modal on submit
+* Admin dashboard — overview stats, Manage Users (role dropdown + ban/unban toggle via Server Actions re-verifying admin server-side), Manage Listings (all statuses with filter tabs), Analytics (bar-chart-style breakdowns, no external chart library), Settings (shared `ProfileSettingsForm`)
+* better-auth `admin` plugin integrated — role/user management now has access to built-in admin APIs alongside the hand-rolled Server Actions
+* Deployed to production — required fixing environment-variable-dependent config (`BETTER_AUTH_URL`, `trustedOrigins`) that only surfaces once running outside `localhost`
 
 ---
 
@@ -718,6 +722,150 @@ Fixed in `Roomfinder-server/src/controllers/listing.controller.ts`, inside `upda
 
 ---
 
+# Issue #13
+
+## Problem
+
+Asked for "Add Listing" to open as a modal instead of navigating to a full page. First attempt used Next.js parallel routes + intercepting routes (`@modal/(.)add-listing/page.tsx`), which was overbuilt for what was actually wanted — added a `default.tsx`, a modified `layout.tsx` accepting a `modal` slot, and only worked when triggered via `<Link>` client-side navigation (a hard refresh or direct URL visit would fall through to the plain page instead).
+
+## Cause
+
+Reached for a Next.js-native routing pattern when a simple client-side `useState` modal would have been both simpler and closer to what was actually asked for.
+
+## Solution
+
+Replaced with a plain component-level modal: a single `AddListingModal.tsx` holding its own open/close state, rendering the existing `AddListingForm` inside, with an `onSuccess` callback prop added to the form so it can close the modal instead of always calling `router.push()`. No new route segments, no parallel-route folders. Deleted the `@modal/` folder and reverted `layout.tsx` back to a plain `{children}` layout.
+
+**Lesson:** when asked to "make X a modal," default to the simplest client-state implementation first — only reach for parallel/intercepting routes if a shareable/bookmarkable modal URL is an explicit requirement.
+
+---
+
+# Issue #14
+
+## Error
+
+```
+Export HeroUIProvider doesn't exist in target module
+```
+...when following HeroUI's current docs (CSS-only import in `globals.css`, no `tailwind.config.ts`, no provider).
+
+## Cause
+
+`@heroui/react` had a major version jump to **v3** — a rewrite with no provider, no Tailwind config plugin (Tailwind v4 CSS-import setup instead), and compound components (`Modal.Backdrop` / `Modal.Container` / `Modal.Dialog`, trigger via `Modal.Trigger` or a HeroUI `Button` placed as a direct child) instead of v2's `ModalContent` / `ModalHeader` / `ModalBody` + `useDisclosure`.
+
+Since the project's Tailwind setup is v3-style (`tailwind.config.ts` with `content`/`plugins`), migrating fully to v3's Tailwind v4 requirement would have meant touching every existing utility class in the project — far outside the actual ask.
+
+## Solution
+
+Confirmed the project was in fact on the CSS-import (v3) setup, and rebuilt all modal components using v3's real API:
+```tsx
+<Modal>
+  <Button>Trigger</Button>  {/* or <Modal.Trigger> for non-Button elements */}
+  <Modal.Backdrop>
+    <Modal.Container placement="center" scroll="inside" size="lg">
+      <Modal.Dialog>
+        {({ close }) => (
+          <>
+            <Modal.Header>...</Modal.Header>
+            <Modal.Body>...</Modal.Body>
+          </>
+        )}
+      </Modal.Dialog>
+    </Modal.Container>
+  </Modal.Backdrop>
+</Modal>
+```
+No `HeroUIProvider`, no `tailwind.config.ts` plugin — both removed since v3 needs neither.
+
+**Lesson:** always confirm the actual installed major version (`npm ls @heroui/react`) before writing library code — a "add a modal" ask turned into a two-round detour (first assuming v2, then v3) purely from not verifying the version up front.
+
+---
+
+# Issue #15
+
+## Error
+
+`EditListingModal`'s trigger button did nothing when clicked — no error, modal simply never opened.
+
+## Cause
+
+HeroUI v3's `Modal` only auto-wires its own `Button` component as an open trigger when placed as a direct child. `EditListingModal` used a plain native `<button>` instead of HeroUI's `Button` or `Modal.Trigger` — Modal has no way to know a raw HTML button should open it.
+
+## Solution
+
+Wrapped the trigger in `Modal.Trigger` (works with any custom element, not just HeroUI's own `Button`):
+```tsx
+<Modal.Trigger className="...">
+  <Pencil className="h-3.5 w-3.5" />
+  Edit
+</Modal.Trigger>
+```
+**Lesson:** any custom-styled trigger element inside a HeroUI `Modal` needs `Modal.Trigger` (or must be HeroUI's own `Button`) — a plain `<button>`/`<div>` will silently do nothing.
+
+---
+
+# Issue #16
+
+## Errors (two, in sequence, both root-caused to the same underlying issue)
+
+1. Build error: `Object literal may only specify known properties, and 'userRole' does not exist in type '...'`
+2. After a first attempted fix, runtime error: role/field "not allowed to be set"
+
+## Cause
+
+Two layered mistakes:
+1. **Wrong call syntax** — custom fields on `signUp.email()` must be passed **flat**, alongside `email`/`password`/`name`, not nested inside a literal `additionalFields: {...}` object. Nesting them sends a field better-auth doesn't recognize.
+2. **Reserved field name conflict** — the project uses better-auth's `admin` plugin (`plugins: [admin()]`), which reserves the field name `role` for its own access-control system (`user` / `admin`, restricted, not client-settable) regardless of any custom `additionalFields.role` config. Attempting to declare/set a custom `role` field while the `admin` plugin is active will always be rejected.
+
+## Solution
+
+- Kept the project's actual field name, `userRole` (not `role`), which doesn't collide with anything the `admin` plugin reserves — no database hook workaround needed.
+- Declared it correctly in `auth.ts`:
+  ```ts
+  user: {
+    additionalFields: {
+      userRole: { type: "string", defaultValue: "tenant", input: true },
+    },
+  },
+  ```
+- Called it flat (not nested) on signup: `signUp.email({ email, password, name, userRole: role, callbackURL: "/" })`
+- Client-side type inference required either `inferAdditionalFields<typeof auth>()` (pulls the shape from the server config's type) or, when that failed to take effect (likely a TypeScript instantiation issue with the generic), the explicit manual form instead:
+  ```ts
+  inferAdditionalFields({ user: { userRole: { type: "string" } } })
+  ```
+  The explicit version is more reliable since it doesn't depend on generic inference succeeding.
+- Also added `adminClient()` to `auth-client.ts` alongside `inferAdditionalFields`, since the server now has the `admin` plugin active.
+
+**Lesson:** if a project uses better-auth's `admin` plugin, never name a custom field `role` (or `banned`/`banReason`/`banExpires`) — those are reserved. Also: additional fields are always flat properties on the request body, never nested under a key literally called `additionalFields`.
+
+---
+
+# Issue #17
+
+## Errors (three unrelated build failures found back-to-back during one deploy attempt)
+
+1. `Property 'size' does not exist on type 'IntrinsicAttributes & SVGProps<SVGSVGElement>'` (on `@gravity-ui/icons` components)
+2. `Cannot find name 'BookingsResponse'. Did you mean 'BookingResponse'?`
+3. "Invalid origin" shown to users during signup, only after deploying (never seen locally)
+
+## Causes & Solutions
+
+**(1) Gravity UI icons don't accept a `size` prop.** `@gravity-ui/icons` exports raw SVG components typed as plain `SVGProps<SVGSVGElement>` — unlike `lucide-react`, there's no custom `size` shorthand, only standard `width`/`height`. Fixed by replacing every `size={16}` with `width={16} height={16}` across the sign-up page's icon usages (`Person`, `At`, `ShieldKeyhole`, `Eye`/`EyeSlash`).
+
+**(2) Missing type interface.** `lib/api/bookings.ts` had `BookingResponse` (singular, for one booking) defined, but `getAllBookings` needed `BookingsResponse` (plural, for a list) which didn't exist yet. Fixed by adding:
+```ts
+interface BookingsResponse {
+  bookings: Booking[];
+}
+```
+alongside the existing `BookingResponse`.
+
+**(3) `trustedOrigins` mismatch in production.** better-auth checks every auth request's origin against `trustedOrigins` and rejects anything not an exact string match. Root cause is almost always one of: `BETTER_AUTH_URL` not set (or set to `localhost`) on the deploy platform's environment variables, a trailing-slash/protocol/www mismatch between the configured value and the real deployed origin, or (if www + non-www both resolve) only one of the two variants being listed. Diagnosed by comparing the browser's actual `Origin` request header (DevTools → Network tab on the failing signup request) against the deployed `BETTER_AUTH_URL` value character-for-character.
+
+**Lesson:** environment variables set in local `.env` files never carry over to a deploy platform automatically — every `NEXT_PUBLIC_*`, `BETTER_AUTH_URL`, `MONGODB_URI`, etc. needs to be re-entered in the hosting dashboard, and it's easy to deploy successfully (build passes) while still pointing at `localhost` values that only fail at runtime, in production, under real user traffic.
+
+---
+
 # Debugging Checklist
 
 Whenever something doesn't work
@@ -848,12 +996,71 @@ Image Upload
 feat: add direct browser-to-imgbb image upload with drag-and-drop uploader
 ```
 
+Booking Modal
+
+```bash
+feat(bookings): add tenantName, tenantPhone, and moveInDate fields with required-field validation
+```
+
+```bash
+feat(bookings): replace instant booking with a request modal collecting tenant contact info
+```
+
+Admin Approval
+
+```bash
+fix(listings): resolve MongoDB $set/$unset conflict on rejectionReason causing 500 on approval
+```
+
+```bash
+feat(admin): add listing approval queue with approve/reject actions and status-gated visibility
+```
+
+Add/Edit Listing Modals
+
+```bash
+refactor(owner): replace intercepting-route modal with simple client-state modal for Add Listing
+```
+
+```bash
+feat(owner): add Edit Listing modal with HeroUI v2, reusing existing EditListingForm
+```
+
+HeroUI Integration
+
+```bash
+chore: pin @heroui/react to v2 to match existing Tailwind v3 config
+```
+
+Admin Dashboard
+
+```bash
+feat(admin): add dashboard overview, manage users, manage listings, analytics, and settings pages
+```
+
+Auth Fixes
+
+```bash
+fix(auth): move custom role field to flat userRole property, avoiding admin plugin's reserved role field
+```
+
+Deployment Fixes
+
+```bash
+fix: correct Gravity UI icon props (size -> width/height) and add missing BookingsResponse type
+```
+
+```bash
+fix(auth): resolve invalid origin error by correcting trustedOrigins/BETTER_AUTH_URL for production
+```
+
 ---
 
 # Lessons Learned
 
 * Always read the terminal error before debugging.
-* Keep custom fields inside `additionalFields`.
+* Custom fields must be **declared** under `user.additionalFields` in `auth.ts` (server-side), but are passed **flat** on the actual `signUp.email({...})` call — never nested inside a literal `additionalFields: {...}` object on the client call itself. (Corrects an earlier, wrong version of this lesson.)
+* If using better-auth's `admin` plugin, never name a custom field `role`, `banned`, `banReason`, or `banExpires` — those are reserved by the plugin and will always reject client-side writes, regardless of your own field config.
 * Restart Next.js after changing `.env.local` **or** `next.config.ts` — neither hot-reloads.
 * Test authentication with a new user after changing the schema.
 * Use fallback values for dynamic routes.
@@ -864,6 +1071,10 @@ feat: add direct browser-to-imgbb image upload with drag-and-drop uploader
 * Every Express async route handler needs to either be wrapped (`asyncHandler`) or have its own `try/catch` — otherwise failures are silent and requests just hang.
 * Enforce business rules (like "can't book your own listing") on the backend, not just the frontend — the frontend check is a UX nicety, not a real guard.
 * When two apps (frontend/backend) evolve independently, re-sync the shared type/schema explicitly rather than assuming they still match.
+* Confirm a library's actual installed major version before writing code against it — assuming based on training-data familiarity (e.g. HeroUI v2 syntax) cost a full round-trip when the real installed version was v3.
+* Default to the simplest implementation first (e.g. a `useState` modal) rather than reaching for a more powerful but more complex pattern (intercepting routes) unless a specific requirement (shareable URL, direct-visit fallback) actually calls for it.
+* Icon libraries are not interchangeable — `lucide-react`'s `size` prop convention doesn't carry over to every icon package; `@gravity-ui/icons` only accepts standard SVG `width`/`height`.
+* Environment variables set locally never automatically reach a deploy platform — re-enter every one (`BETTER_AUTH_URL`, `NEXT_PUBLIC_BASE_URL`, `MONGODB_URI`, etc.) in the hosting dashboard, and verify production values (not `localhost`) before assuming a successful build means a working deploy.
 
 ---
 
@@ -871,26 +1082,30 @@ feat: add direct browser-to-imgbb image upload with drag-and-drop uploader
 
 Completed (moved from the original list):
 
-* ~~Room Posting~~ → Add Listing form
+* ~~Room Posting~~ → Add Listing form (now a modal)
 * ~~Room Details~~ → Room details page
 * ~~Search & Filter~~ → Find Room page
 * ~~Wishlist~~ → Saved Rooms
-* ~~Booking System~~ → Request/approve/reject/cancel flow
+* ~~Booking System~~ → Request/approve/reject/cancel flow, with a contact-info modal instead of instant booking
 * ~~Profile Management~~ → name, avatar, password
+* ~~Admin Dashboard~~ → overview, manage users, manage listings, analytics, settings
+* ~~Role Based Dashboard~~ → separate owner/admin sidebar layouts and route groups (tenant layout still open, see below)
 
 Still open:
 
-* Protected Routes
-* Role Based Dashboard (owner vs tenant views beyond current dashboard pages)
+* Protected Routes (beyond current layout-level role redirects)
+* Tenant dashboard layout (`/dashboard/tenant/layout.tsx`) — owner and admin have sidebar layouts; tenant doesn't yet
 * Reviews & Ratings
 * Notifications
 * Chat Between Tenant & Owner
-* Admin Dashboard
 * Payment Integration
 * Email Verification
 * Forgot Password
 * Authorization on the Express API (currently any request can act as any `tenantId`/`ownerId` — no token verification yet, tracked as a known gap)
 * Narrow `next.config.ts` image `remotePatterns` from `hostname: "**"` down to actual image hosts (imgbb, etc.)
+* Wire `banned` flag into actual sign-in blocking (currently just a data flag; the `admin` plugin's built-in ban enforcement may already solve this for free — worth checking before building it manually)
+* No signup path produces `role: "admin"` — must still be set manually in MongoDB for the first admin account
+* No pagination on listings/bookings/users lists — fine at current scale, will need it as data grows
 
 ---
 

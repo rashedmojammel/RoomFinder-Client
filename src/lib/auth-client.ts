@@ -1,50 +1,67 @@
-// "use client";
+// // "use client";
 
+
+// // import { createAuthClient } from "better-auth/react";
+
+
+// // export const authClient = createAuthClient({
+
+// //   baseURL: process.env.NEXT_PUBLIC_APP_URL,
+
+// // });
+
+
+
+// // export const {
+// //   signIn,
+// //   signUp,
+// //   signOut,
+// //   useSession,
+// // } = authClient;
+
+// // import { adminClient } from "better-auth/client/plugins"
+// // import { createAuthClient } from "better-auth/react"
+// // export const authClient = createAuthClient({
+// //     /** The base URL of the server (optional if you're using the same domain) */
+// //     baseURL: process.env.BETTER_AUTH_URL,
+// //     plugins: [
+// //         adminClient(),
+// //         // jwtClient(), 
+// //     ]
+// // })
+// // export const { signIn, signUp, signOut, useSession , updateUser , changePassword } = createAuthClient()
 
 // import { createAuthClient } from "better-auth/react";
-
+// import { inferAdditionalFields } from "better-auth/client/plugins";
+// import { adminClient } from "better-auth/client/plugins";
 
 // export const authClient = createAuthClient({
-
-//   baseURL: process.env.NEXT_PUBLIC_APP_URL,
-
+//   plugins: [
+//     inferAdditionalFields({
+//       user: {
+//         userRole: {
+//           type: "string",
+//         },
+//       },
+//     }),
+//     adminClient(),
+//   ],
 // });
 
-
-
-// export const {
-//   signIn,
-//   signUp,
-//   signOut,
-//   useSession,
-// } = authClient;
-
-// import { adminClient } from "better-auth/client/plugins"
-// import { createAuthClient } from "better-auth/react"
-// export const authClient = createAuthClient({
-//     /** The base URL of the server (optional if you're using the same domain) */
-//     baseURL: process.env.BETTER_AUTH_URL,
-//     plugins: [
-//         adminClient(),
-//         // jwtClient(), 
-//     ]
-// })
-// export const { signIn, signUp, signOut, useSession , updateUser , changePassword } = createAuthClient()
+// export const { signIn, signUp, signOut, useSession } = authClient;
 
 import { createAuthClient } from "better-auth/react";
-import { inferAdditionalFields } from "better-auth/client/plugins";
-import { adminClient } from "better-auth/client/plugins";
+import { inferAdditionalFields, adminClient, jwtClient } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
   plugins: [
     inferAdditionalFields({
       user: {
-        userRole: {
-          type: "string",
-        },
+        userRole: { type: "string" },
       },
     }),
     adminClient(),
+    jwtClient(),
   ],
 });
 
