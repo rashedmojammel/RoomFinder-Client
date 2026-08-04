@@ -2,8 +2,7 @@
 
 A room and apartment rental marketplace connecting tenants directly with room owners — no brokers, verified listings, and a straightforward booking flow.
 
-This is the **frontend** repository. Built with Next.js 16 (App Router), TypeScript, and Tailwind CSS. It talks to a separate Express + MongoDB backend ([`Roomfinder-server`](#)) over a REST API secured with JWTs.
-
+This is the **frontend** repository. Built with Next.js 16 (App Router), TypeScript, and Tailwind CSS. It talks to a separate Express + MongoDB backend ([`Roomfinder-server`](#)) over a REST API secured with JWTs ..
 ---
 
 ## ✨ Features
